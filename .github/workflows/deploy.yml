@@ -2,9 +2,8 @@ name: Build and Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
+  workflow_dispatch: # Добавлено: разрешить ручной запуск
 
 permissions:
   contents: write
@@ -14,29 +13,38 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: # Добавлено: отслеживание окружения
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Checkout your code 🛎️
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js environment
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm' # Добавлено: кеширование npm
 
-      - name: Install dependencies and build 🔧
-        run: |
+      - run: |
           npm install
           npm run build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true # Критично: принудительное включение Pages
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Validate build output
+        run: |
+          if [ ! -d "./dist" ]; then
+            echo "❌ Folder 'dist' not found!"
+            exit 1
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
 
-      - name: Deploy to GitHub Pages 🚀
+      - uses: actions/deploy-pages@v4
         id: deployment
-        uses: actions/deploy-pages@v4
